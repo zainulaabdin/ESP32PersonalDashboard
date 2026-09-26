@@ -1,0 +1,163 @@
+==============================================================================
+STATUS LED (WS2812 on the back of the board, GPIO42) - src/app/status_led.cpp
+==============================================================================
+Highest-priority state wins (top of the table first).
+
+  State                                  Colour   Pattern
+  -------------------------------------  -------  ---------------------------
+  OTA update downloading/installing      cyan     fast blink (4 Hz)
+  Wi-Fi provisioning (QR on screen)      blue     breathing
+  Wi-Fi not connected / connecting       orange   slow blink (1 Hz)
+  Ask tab (recording/answering/speaking) pink     blink (2 Hz)
+  Today tab / calendar fetch             purple   blink (2 Hz)
+  Bus tab fetch                          green    blink (2 Hz)
+  Weather fetch                          yellow   blink (2 Hz)
+  OTA checking GitHub for a release      cyan     blink (2 Hz)
+  Idle, connected                        off
+  Light sleep (screen off)               red      steady
+  Deep sleep                             red      3 flashes, then off
+
+(In light/deep sleep the CPU is halted, so the LED can't animate - it holds
+the last colour it was sent.)
+
+
+==============================================================================
+OTA UPDATES FROM GITHUB - src/app/ota.cpp
+==============================================================================
+- The board checks github.com/zainulaabdin/ESP32PersonalDashboard releases
+  ~5 min after Wi-Fi connects (after the heavy boot-time bus/calendar
+  loads), then every 6 h, or on demand via the OTA icon
+  in Settings (or "ota" in the serial monitor; "version" prints the running
+  version). Settings shows the running version (and web page address) under the icons; after an
+  OTA tap it shows "No update available" (or a failure) for 30 s.
+- It installs a release when the release tag is newer than FIRMWARE_VERSION
+  and the release has an asset named firmware.bin, then restarts.
+- No token needed for a public repo. For a private one, set
+  GITHUB_OTA_TOKEN (fine-grained, read-only "Contents" on that repo).
+
+To publish an update:
+  1. Bump FIRMWARE_VERSION in src/app/firmware_version.h (e.g. "1.0.2").
+  2. pio run -e release
+  3. gh release create v1.0.2 .pio/build/release/firmware.bin --title v1.0.2 --notes "what changed"
+
+The release environment builds from the empty secrets.h.example, so the
+published firmware.bin has no keys; the board uses the keys saved in its
+flash (web page, or saved once by a local "app" build with a filled
+secrets.h). Never publish an "app" build.
+
+Settings tab icons, left to right: Wi-Fi provisioning, OTA check, Sleep,
+Restart, Web dashboard QR.
+
+
+==============================================================================
+WEB SETTINGS PAGE - src/app/web_config.cpp
+==============================================================================
+- Open http://<board IP>/ from a phone/PC on the same Wi-Fi. The address is
+  shown in Settings next to the version ("Version x.y.z   Web: 192.168.0.14").
+- Login: user admin, password = WEB_CONFIG_PASSWORD in include/secrets.h, or change it on
+  the Settings page ("Web page password").
+- Three tabs at the bottom: Settings, Diagnostics, Actions.
+- Settings page: bus stop code, bus/calendar refresh intervals (apply
+  immediately), calendar ICS URL, LTA / OpenAI / GitHub keys, web page password. Keys are
+  write-only (only the last 4 characters are shown); leave a field empty to
+  keep the current value. Saving a key or the URL stores it in NVS
+  (overrides secrets.h) and restarts the board.
+- Actions tab: version, Provision Wi-Fi (shows the QR on the board; the
+  page goes offline until setup finishes), Check for update, Sleep (yellow),
+  Restart (red) - same colours as the board icons. Check for update stays on the page and reports
+  "No update available (Version x)" or "Update available (Version x -> y)"
+  with an Install update button (shows install %).
+- On the board: the dashboard icon (5th icon in Settings) shows a QR code
+  for http://<board IP>/ - scan it with the phone camera.
+- Diagnostics tab (/diag): diagnostics (firmware, uptime, last reset reason, RAM / largest
+  block / lowest RAM, PSRAM, storage, chip temp, Wi-Fi, and OK/FAIL + age
+  for LTA, Calendar, Weather, OpenAI, Audio, OTA). Refreshes every 5 s.
+- The server is stopped during Wi-Fi provisioning (port 80 conflict).
+
+
+==============================================================================
+FAVOURITE BUS STOPS - src/app/bus.cpp
+==============================================================================
+- Two favourites: one for midnight-noon, one for noon-midnight. The one for
+  the current time is the first row in the Bus sidebar (home symbol) and
+  is shown on boot; the board switches automatically at 00:00 and 12:00.
+  Picking another stop by hand stays until the next switch.
+- Set both on the web Settings page. Default (until set) is
+  FAVORITE_BUS_STOP in include/secrets.h (was BUS_STOP).
+
+
+==============================================================================
+NIGHT MODE - src/app/night_mode.cpp
+==============================================================================
+- Screen mode on the web Actions tab (first row): Auto / Night / Day.
+  Auto = night from sunset to sunrise (Singapore, computed daily in
+  weather.cpp); Night / Day stay in that mode regardless of time.
+- Web Settings page, "Screen": day brightness and night brightness (%).
+  The brightness slider on the board changes whichever one is current.
+- At night the tabs switch to dark colours: light grey/white backgrounds
+  and borders go dark, dark text goes light; coloured things and all
+  images/icons are unchanged (only style colours change, no pixel filter).
+  Dark accent colours (Settings blue #27488F in the top bar, sliders,
+  +/- buttons, Settings/Wi-Fi icons) turn white; grey text is brightened.
+  The weather screen switches to its night background; QR codes and other
+  full-screen overlays are drawn normally.
+- Serial "night" command: preview night on/off without waiting for sunset.
+
+
+==============================================================================
+VOLUME / REPLAY ON THE WEB PAGE
+==============================================================================
+- Web Settings tab, top: volume slider - applied live while dragging (also
+  while an answer is playing), saved 2 s after it stops moving; the board's
+  slider follows.
+- Replay button next to it plays the last Ask answer again. Its icon is
+  replay_24x24_empty.png (and the button is disabled) when there's no
+  answer yet; same icon swap on the board's Ask tab.
+
+
+==============================================================================
+WEATHER AREA / RAIN / UV - src/app/weather.cpp
+==============================================================================
+- Web Settings, "Weather": area (one of NEA's 47 2-hour-forecast areas,
+  default Bishan) and update interval (5-60 min, default 10).
+- The area name is shown in white right of the hero icon, level with the
+  clock. The condition line under the hero icon uses the area's 2-hour
+  forecast (falls back to the 24-hour one). Live temperature comes from the
+  station nearest the area.
+- Between sunrise and sunset the PSI strip alternates with the UV index
+  every 30 s; at night only PSI is shown
+  (UV 0-2 Low, 3-5 Moderate, 6-7 High, 8-10 Very High, 11+ Extreme).
+
+
+==============================================================================
+ASK: SHORTCUTS + VOICE COMMANDS - src/app/ask.cpp
+==============================================================================
+- Coloured strips under the mic: tap to ask without recording. Questions
+  go to the model as text (spoken answer as usual); "Show my calendar." and
+  "Turn the screen off." run directly on the board. Strips hide while an
+  answer is shown; tap the answer to get them back.
+- Voice/typed commands via OpenAI function calling: show a screen
+  (profile/calendar/bus/ask/settings/weather), screen off, volume, mute,
+  screen mode (auto/night/day), bus stop by code. A tool-call reply has no
+  audio, so a second small request speaks the model's one-line confirmation.
+- The model also gets weather context (area 2-hour forecast, temps, UV, PSI)
+  so "Will it rain?" is answered from real data.
+- Web Settings "Voice": full-width volume, Unmute/Mute, Replay.
+
+
+==============================================================================
+WAKE WORD "JARVIS" - src/app/wake_word.cpp, lib/esp_sr
+==============================================================================
+- Espressif ESP-SR v1.6.0 WakeNet9 (prebuilt libs + headers in lib/esp_sr).
+  Say "Jarvis" -> the board opens the Ask tab and starts recording.
+- On/off: the ear icon on the Ask tab (left of replay), or web Settings >
+  Voice > Wake word. Persisted.
+- The model is in its own flash partition (partitions_jarvis.csv, "model"
+  at 0xF70000; SPIFFS shrunk to 2.9MB). One-time USB flash after the
+  partition change:
+    pio run -e app -t upload
+    python esptool.py --chip esp32s3 --port COM8 write_flash 0xF70000 models/srmodels_jarvis.bin
+  OTA updates keep working afterwards (they don't touch partitions).
+- The listener releases the mic/codec whenever Ask records or the speaker
+  plays. Costs ~28KB internal RAM (libs + task stack + I2S DMA); WakeNet's
+  own buffers are forced into PSRAM.

@@ -1,0 +1,6 @@
+{
+  "name": "esp_sr",
+  "version": "1.6.0",
+  "description": "Espressif ESP-SR v1.6.0 (WakeNet only) - headers, model loader and prebuilt ESP32-S3 libraries. Linked via build_flags in platformio.ini.",
+  "build": { "srcDir": "src", "includeDir": "include" }
+}
