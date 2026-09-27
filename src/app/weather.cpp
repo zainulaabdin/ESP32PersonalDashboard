@@ -714,6 +714,30 @@ static void renderWeather()
     lv_obj_set_width(areaLabel, clockArea.x1 - (heroArea.x2 + 1) - 6);
     lv_obj_clear_flag(areaLabel, LV_OBJ_FLAG_HIDDEN);
 
+    // Condition text: single line that must stop short of the temperature in
+    // rightCol - if too long, cap its width and let it scroll horizontally.
+    {
+        const char *txt = lv_label_get_text(conditionTextLabel);
+        lv_point_t natural;
+        lv_txt_get_size(&natural, txt, &lv_font_montserrat_20, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        lv_area_t condArea, tempArea;
+        lv_obj_get_coords(conditionTextLabel, &condArea);
+        lv_obj_get_coords(tempLabel, &tempArea);
+        // 11px = conditionRow's pad_right, plus a 6px gap before the temperature.
+        lv_coord_t maxW = tempArea.x1 - condArea.x1 - 11 - 6;
+        if (maxW > 20 && natural.x > maxW)
+        {
+            lv_label_set_long_mode(conditionTextLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
+            lv_obj_set_style_anim_speed(conditionTextLabel, 25, 0); // px/s - slower than LVGL's default, per explicit request
+            lv_obj_set_width(conditionTextLabel, maxW);
+        }
+        else
+        {
+            lv_label_set_long_mode(conditionTextLabel, LV_LABEL_LONG_WRAP);
+            lv_obj_set_width(conditionTextLabel, LV_SIZE_CONTENT);
+        }
+    }
+
     renderForecastRow();
 }
 
