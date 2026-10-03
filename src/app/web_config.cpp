@@ -65,7 +65,7 @@ static const char PAGE_HEAD[] PROGMEM =
     ".seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}.seg button.on{background:#3949ab;color:#fff}"
     "button.rp{background:#2a2a2a;margin:0;padding:6px 14px;line-height:0}"
     // Same colours as the board's Settings icons (wifi_button, ota_update, sleeping, reboot).
-    "button.prov{background:#35a5f9}button.ota{background:#8c288e}button.sleep{background:#ffd93b;color:#222}"
+    "button.prov{background:#35a5f9}button.ota{background:#8c288e}button.sleep{background:#ffd93b;color:#222}button.rot{background:#9b00ff}"
     ".seg{display:flex;gap:0}.actions .seg button{flex:1;margin:0;border-radius:0;background:#2a2a2a;color:#bdbdbd}"
     ".actions .seg button:first-child{border-radius:6px 0 0 6px}.actions .seg button:last-child{border-radius:0 6px 6px 0}"
     ".actions .seg button.on{background:#3949ab;color:#fff}"
@@ -334,7 +334,8 @@ static void handleActions()
         html += "</button>";
     }
     html += "</form>";
-    html += "<form method='post' action='/provision' onsubmit=\"return confirm('Show the Wi-Fi setup QR code on the board? This page goes offline until setup is done or cancelled on the board.')\"><button class='prov'>Provision Wi-Fi</button></form>"
+    html += "<form method='post' action='/rotate'><button class='rot'>Rotate screen</button></form>"
+            "<form method='post' action='/provision' onsubmit=\"return confirm('Show the Wi-Fi setup QR code on the board? This page goes offline until setup is done or cancelled on the board.')\"><button class='prov'>Provision Wi-Fi</button></form>"
             "<button id='chk' class='ota' onclick='check()'>Check for update</button>"
             "<form method='post' action='/sleep' onsubmit=\"return confirm('Put the board to sleep? Touch the screen to wake it.')\"><button class='sleep'>Sleep</button></form>"
             "<form method='post' action='/restart' onsubmit=\"return confirm('Restart the board?')\"><button class='restart'>Restart</button></form>"
@@ -467,6 +468,15 @@ static void handleNight()
     int mode = server.arg("mode").toInt();
     if (mode >= NIGHT_MODE_AUTO && mode <= NIGHT_MODE_DAY)
         nightModeSetSetting((NightModeSetting)mode);
+    server.sendHeader("Location", "/actions");
+    server.send(303);
+}
+
+static void handleRotate()
+{
+    if (!authorized())
+        return;
+    settingsToggleRotation();
     server.sendHeader("Location", "/actions");
     server.send(303);
 }
@@ -628,6 +638,7 @@ void webConfigTick()
             server.on("/ota/install", HTTP_POST, handleOtaInstall);
             server.on("/ota/status", HTTP_GET, handleOtaStatus);
             server.on("/sleep", HTTP_POST, handleSleep);
+            server.on("/rotate", HTTP_POST, handleRotate);
             server.on("/night", HTTP_POST, handleNight);
             server.on("/volume", HTTP_POST, handleVolume);
             server.on("/replay", HTTP_POST, handleReplay);

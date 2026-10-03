@@ -27,6 +27,7 @@
 #include "network_worker.h"
 #include "backlight.h"
 #include "settings.h"
+#include "display_rotation.h"
 #include "weather.h"
 #include "wifi_manager.h"
 #include "ota.h"
@@ -160,10 +161,34 @@ static bool swipeArmed = false;
 static bool swipeFired = false;
 static int swipeStartY = 0;
 
+static bool screenFlipped = false;
+
+void displaySetFlipped(bool flipped)
+{
+    screenFlipped = flipped;
+    tft.setRotation(flipped ? 3 : 1);
+    if (lv_disp_get_default()) // also called from setup() before lv_init()
+    {
+        lv_obj_invalidate(lv_scr_act());
+        lv_obj_invalidate(lv_layer_top());
+        lv_obj_invalidate(lv_layer_sys());
+    }
+}
+
+bool displayIsFlipped()
+{
+    return screenFlipped;
+}
+
 void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 {
     if (touch_touched())
     {
+        if (screenFlipped)
+        {
+            touch_last_x = screenWidth - 1 - touch_last_x;
+            touch_last_y = screenHeight - 1 - touch_last_y;
+        }
         data->state = LV_INDEV_STATE_PR;
         data->point.x = touch_last_x;
         data->point.y = touch_last_y;
@@ -538,7 +563,10 @@ void setup()
     disp_drv.draw_buf = &draw_buf;
     lv_disp_drv_register(&disp_drv);
 
-    touch_init(screenWidth, screenHeight, tft.getRotation());
+    // Always the unflipped rotation (1): a saved 180-degree flip already set the
+    // TFT to 3, and my_touchpad_read() mirrors touch itself - passing 3 here
+    // would flip touch twice.
+    touch_init(screenWidth, screenHeight, 1);
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;

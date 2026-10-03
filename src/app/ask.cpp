@@ -2090,7 +2090,10 @@ void askInit(lv_obj_t *tab)
         lv_obj_t *strip = lv_obj_create(shortcutBox);
         lv_obj_remove_style_all(strip);
         lv_obj_set_size(strip, LV_SIZE_CONTENT, 34); // ends where the text ends, square corners
-        lv_obj_set_style_bg_color(strip, lv_color_mix(lv_color_white(), lv_color_hex(sc.color), LV_OPA_40), 0); // 40% lighter
+        // Grey for every strip; the shortcut's own colour goes on the border and text.
+        lv_obj_set_style_bg_color(strip, lv_color_hex(0xe0e0e0), 0); // light grey, same as the Bus tab switch track
+        lv_obj_set_style_border_color(strip, lv_color_hex(sc.color), 0);
+        lv_obj_set_style_border_width(strip, 1, 0);
         lv_obj_set_style_bg_opa(strip, LV_OPA_COVER, 0);
         lv_obj_set_style_pad_hor(strip, 10, 0);
         lv_obj_add_flag(strip, LV_OBJ_FLAG_CLICKABLE);
@@ -2099,7 +2102,7 @@ void askInit(lv_obj_t *tab)
         lv_obj_t *label = lv_label_create(strip);
         lv_label_set_text(label, sc.text);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
-        lv_obj_set_style_text_color(label, lv_color_white(), 0);
+        lv_obj_set_style_text_color(label, lv_color_hex(sc.color), 0);
         lv_obj_align(label, LV_ALIGN_LEFT_MID, 0, 0);
     }
 

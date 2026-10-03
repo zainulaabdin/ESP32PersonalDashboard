@@ -31,3 +31,6 @@ void settingsSyncBrightnessSlider();
 // SmartConfig..." overlay accordingly - call every loop() iteration, same
 // convention as bus/today/weather's own *Tick() functions.
 void settingsTick();
+// Flips the whole screen 180 degrees (or back) and saves it - Settings tab's
+// rotate icon and the web page's Rotate button.
+void settingsToggleRotation();

@@ -18,10 +18,12 @@
 #include "icons/settings_icon_wifi.h"
 #include "icons/settings_icon_ota.h"
 #include "icons/settings_icon_dashboard.h"
+#include "icons/settings_icon_rotate.h"
 #include "night_mode.h"
 #include "es8311.h"
 #include <Arduino.h>
 #include <Preferences.h>
+#include "display_rotation.h"
 #include <WiFi.h>
 #include <stdio.h>
 #include <string.h>
@@ -116,8 +118,10 @@ void settingsLoadPersisted()
     int vol = prefs.getInt("vol", volumePct);
     int busSec = prefs.getInt("busSec", busGetRefreshIntervalSec());
     int calMin = prefs.getInt("calMin", todayGetRefreshIntervalMin());
+    bool flip = prefs.getBool("flip", false);
     prefs.end();
 
+    displaySetFlipped(flip);
     backlightSetBrightnessPct(bright);
     volumePct = vol;
     busSetRefreshIntervalSec(busSec);
@@ -650,6 +654,23 @@ void settingsTick()
     }
 }
 
+// Rotate icon: flips the whole UI 180 degrees (display + touch, main.cpp)
+// and saves it straight away - a rare tap, so no batching needed.
+void settingsToggleRotation()
+{
+    bool flip = !displayIsFlipped();
+    displaySetFlipped(flip);
+    Preferences prefs;
+    prefs.begin(SETTINGS_NVS_NAMESPACE, false);
+    prefs.putBool("flip", flip);
+    prefs.end();
+}
+
+static void rotateButtonEvent(lv_event_t *e)
+{
+    settingsToggleRotation();
+}
+
 // The icon itself is the tappable control - no button chrome, no label, and
 // no recolor, so it shows in the exact native colors supplied
 // (icons/sleeping_24x24.png, icons/reboot_24x24.png).
@@ -715,14 +736,15 @@ void settingsInit(lv_obj_t *tab)
     lv_obj_remove_style_all(actionsRow);
     lv_obj_set_size(actionsRow, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(actionsRow, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(actionsRow, 18, 0); // 5 icons must fit the ~235px column
+    lv_obj_set_style_pad_column(actionsRow, 8, 0); // 6 x 32px icons must fit the ~235px column
     lv_obj_clear_flag(actionsRow, LV_OBJ_FLAG_SCROLLABLE);
 
+    addActionButton(actionsRow, &settings_icon_rotate, rotateButtonEvent);
     addActionButton(actionsRow, &settings_icon_wifi, wifiButtonEvent);
+    addActionButton(actionsRow, &settings_icon_dashboard, dashboardButtonEvent);
     addActionButton(actionsRow, &settings_icon_ota, otaButtonEvent);
     addActionButton(actionsRow, &settings_icon_sleep, sleepNowButtonEvent);
     addActionButton(actionsRow, &settings_icon_reboot, rebootButtonEvent);
-    addActionButton(actionsRow, &settings_icon_dashboard, dashboardButtonEvent);
 
     versionLabel = lv_label_create(rightArea);
     lv_obj_add_flag(versionLabel, LV_OBJ_FLAG_IGNORE_LAYOUT); // placed by updateVersionLabel(), not the column flex

@@ -1036,7 +1036,7 @@ void weatherShow()
         lv_obj_set_width(row, LV_SIZE_CONTENT);
         lv_obj_set_height(row, LV_SIZE_CONTENT);
         lv_obj_set_style_bg_color(row, lv_color_black(), 0);
-        lv_obj_set_style_bg_opa(row, LV_OPA_50, 0); // 50% opaque, per explicit request (was 40%)
+        lv_obj_set_style_bg_opa(row, LV_OPA_30, 0); // matches forecastRow's 30%, per explicit request (was 50%)
         lv_obj_set_style_border_width(row, 0, 0);
         lv_obj_set_style_radius(row, 0, 0); // square corners, per explicit request ("no rounding")
         lv_obj_set_style_pad_all(row, 6, 0); // real padding on every side so icon+text is never clipped
@@ -1241,7 +1241,7 @@ void weatherShow()
         lv_obj_remove_style_all(cell);
         lv_obj_set_size(cell, kCellW, cellH != 0 ? cellH : kCellH);
         lv_obj_set_style_bg_color(cell, lv_color_black(), 0);
-        lv_obj_set_style_bg_opa(cell, LV_OPA_50, 0);
+        lv_obj_set_style_bg_opa(cell, LV_OPA_30, 0); // matches forecastRow's 30%
         lv_obj_set_style_radius(cell, 5, 0); // 5px rounded corners, per explicit request
         lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_clear_flag(cell, LV_OBJ_FLAG_CLICKABLE);
