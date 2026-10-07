@@ -13,6 +13,13 @@
 //   no Bluetooth stack is linked into the firmware at all.
 void wifiManagerInit(); // call once from setup(), starts the connection task
 
+// Replaces the saved network with the given one (web Settings page) - the
+// same persisted STA config provisioning writes, so the next boot reconnects
+// with it. password is "" for an open network. The caller restarts the board
+// afterwards; nothing checks the credentials first, so a wrong one leaves
+// the board offline until it's re-provisioned from the Settings tab.
+void wifiSaveCredentials(const char *ssid, const char *password);
+
 // Starts SoftAP provisioning. No-op if already in progress.
 void wifiProvisioningStart();
 

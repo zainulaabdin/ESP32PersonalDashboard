@@ -56,7 +56,12 @@ WEB SETTINGS PAGE - src/app/web_config.cpp
   shown in Settings next to the version ("Version x.y.z   Web: 192.168.0.14").
 - Login: user admin, password = WEB_CONFIG_PASSWORD in include/secrets.h, or change it on
   the Settings page ("Web page password").
-- Three tabs at the bottom: Settings, Diagnostics, Actions.
+- Four tabs at the bottom: Settings, Diagnostics, Actions, Wi-Fi.
+- Wi-Fi tab (/wifi): current network, signal and IP, plus a form to change
+  the network (name + password, empty password = open network). Saving
+  restarts the board onto the new network; the credentials are not checked
+  first, so if they are wrong the board stays offline until Wi-Fi is set up
+  again from the board's Settings tab (Wi-Fi icon).
 - Settings page: bus stop code, bus/calendar refresh intervals (apply
   immediately), calendar ICS URL, LTA / OpenAI / GitHub keys, web page password. Keys are
   write-only (only the last 4 characters are shown); leave a field empty to

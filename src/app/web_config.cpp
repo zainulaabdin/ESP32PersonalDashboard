@@ -34,9 +34,13 @@ enum DeferredAction
     ACTION_RESTART,
     ACTION_SLEEP,
     ACTION_PROVISION,
+    ACTION_WIFI,
 };
 static DeferredAction deferredAction = ACTION_NONE;
 static unsigned long deferredAtMs = 0;
+// New network from the Settings page's Wi-Fi form, applied by ACTION_WIFI.
+static char pendingSsid[33] = "";
+static char pendingWifiPassword[64] = "";
 
 static void deferAction(DeferredAction action)
 {
@@ -165,15 +169,16 @@ enum WebTab
     TAB_SETTINGS,
     TAB_DIAG,
     TAB_ACTIONS,
+    TAB_WIFI,
 };
 
-// Bottom tab bar shared by all three pages.
+// Bottom tab bar shared by all four pages.
 static void endPage(String &html, WebTab active)
 {
-    static const char *hrefs[] = {"/", "/diag", "/actions"};
-    static const char *names[] = {"Settings", "Diagnostics", "Actions"};
+    static const char *hrefs[] = {"/", "/diag", "/actions", "/wifi"};
+    static const char *names[] = {"Settings", "Diagnostics", "Actions", "Wi-Fi"};
     html += "<nav>";
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 4; i++)
     {
         html += "<a href='";
         html += hrefs[i];
@@ -202,6 +207,17 @@ static String maskedHint(const char *field, const char *value)
     String hint = String(appConfigIsOverridden(field) ? "set on web page" : "from secrets.h") + ", ends ...";
     hint += (len > 4) ? value + len - 4 : value;
     return hint;
+}
+
+static String htmlEscape(const String &text)
+{
+    String out = text;
+    out.replace("&", "&amp;");
+    out.replace("<", "&lt;");
+    out.replace(">", "&gt;");
+    out.replace("'", "&#39;");
+    out.replace("\"", "&quot;");
+    return out;
 }
 
 static void favoriteField(String &html, const char *label, const char *field, const char *code)
@@ -401,6 +417,54 @@ static void handleSave()
     }
     else
         sendMessage("Saved", "/", 2, TAB_SETTINGS);
+}
+
+static void handleWifiPage()
+{
+    if (!authorized())
+        return;
+    String html;
+    beginPage(html, "Wi-Fi");
+    html += "<h1>Wi-Fi</h1><table>";
+    row(html, "Connected to", htmlEscape(WiFi.SSID()));
+    row(html, "Signal", String(WiFi.RSSI()) + " dBm");
+    row(html, "IP", WiFi.localIP().toString());
+    // Saving always restarts the board onto the new network.
+    html += "</table><form method='post' action='/wifi' onsubmit=\"return confirm('Save this Wi-Fi network and restart the board? "
+            "If the name or password is wrong the board stays offline until you set Wi-Fi up again from its Settings tab.')\">"
+            "<h2>Change network</h2><label>Network name (SSID)</label><input name='ssid' maxlength='32' required autocapitalize='off' autocorrect='off' value='";
+    html += htmlEscape(WiFi.SSID());
+    html += "'><label>Password <span class='dim'>(leave empty for an open network)</span></label>"
+            "<input name='wifipw' id='wifipw' type='password' maxlength='63' autocomplete='off' autocapitalize='off'>"
+            "<label><input type='checkbox' style='width:auto' onclick=\"document.getElementById('wifipw').type=this.checked?'text':'password'\"> Show password</label>"
+            "<div class='note'>The board restarts and joins this network. Its address will probably change - the new one is shown on the board.</div>"
+            "<button type='submit'>Save &amp; restart</button></form>";
+    endPage(html, TAB_WIFI);
+    server.send(200, "text/html", html);
+}
+
+static void handleWifi()
+{
+    if (!authorized())
+        return;
+    // Not trimmed: leading/trailing spaces are legal in both.
+    String ssid = server.arg("ssid");
+    String password = server.arg("wifipw");
+    if (ssid.length() == 0 || ssid.length() > 32)
+    {
+        sendMessage("Wi-Fi not saved - the network name must be 1 to 32 characters", "/wifi", 5, TAB_WIFI);
+        return;
+    }
+    if (password.length() != 0 && (password.length() < 8 || password.length() > 63))
+    {
+        sendMessage("Wi-Fi not saved - the password must be 8 to 63 characters (or empty for an open network)", "/wifi", 5, TAB_WIFI);
+        return;
+    }
+    strlcpy(pendingSsid, ssid.c_str(), sizeof(pendingSsid));
+    strlcpy(pendingWifiPassword, password.c_str(), sizeof(pendingWifiPassword));
+    String message = "Wi-Fi saved - restarting onto \"" + htmlEscape(ssid) + "\". Join that network and open the address shown on the board.";
+    sendMessage(message.c_str(), "/wifi", 60, TAB_WIFI);
+    deferAction(ACTION_WIFI);
 }
 
 static void handleRestart()
@@ -614,7 +678,13 @@ void webConfigTick()
         DeferredAction action = deferredAction;
         deferredAction = ACTION_NONE;
         settingsOnTabLeave(); // flush any unsaved Settings-tab changes first
-        if (action == ACTION_RESTART)
+        if (action == ACTION_WIFI)
+        {
+            wifiSaveCredentials(pendingSsid, pendingWifiPassword);
+            delay(50);
+            ESP.restart();
+        }
+        else if (action == ACTION_RESTART)
         {
             delay(50);
             ESP.restart();
@@ -633,6 +703,8 @@ void webConfigTick()
         {
             server.on("/", HTTP_GET, handleRoot);
             server.on("/save", HTTP_POST, handleSave);
+            server.on("/wifi", HTTP_GET, handleWifiPage);
+            server.on("/wifi", HTTP_POST, handleWifi);
             server.on("/restart", HTTP_POST, handleRestart);
             server.on("/ota/check", HTTP_POST, handleOtaCheck);
             server.on("/ota/install", HTTP_POST, handleOtaInstall);

@@ -188,6 +188,16 @@ void wifiManagerInit()
     }
 }
 
+void wifiSaveCredentials(const char *ssid, const char *password)
+{
+    // WiFi.begin(ssid, pass) is what persists the STA config to esp-idf's
+    // NVS (same path the secrets.h default takes on a first boot). The
+    // connection attempt it kicks off doesn't matter - the caller restarts.
+    Serial.printf("wifi: saving new network from the web page (%s)\n", ssid);
+    WiFi.disconnect();
+    WiFi.begin(ssid, password[0] ? password : nullptr);
+}
+
 void wifiProvisioningStart()
 {
     if (provisioningActive)
