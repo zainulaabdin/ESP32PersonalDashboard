@@ -38,7 +38,7 @@ enum DeferredAction
 };
 static DeferredAction deferredAction = ACTION_NONE;
 static unsigned long deferredAtMs = 0;
-// New network from the Settings page's Wi-Fi form, applied by ACTION_WIFI.
+// New network from the Actions page's Wi-Fi form, applied by ACTION_WIFI.
 static char pendingSsid[33] = "";
 static char pendingWifiPassword[64] = "";
 
@@ -169,16 +169,15 @@ enum WebTab
     TAB_SETTINGS,
     TAB_DIAG,
     TAB_ACTIONS,
-    TAB_WIFI,
 };
 
-// Bottom tab bar shared by all four pages.
+// Bottom tab bar shared by all three pages.
 static void endPage(String &html, WebTab active)
 {
-    static const char *hrefs[] = {"/", "/diag", "/actions", "/wifi"};
-    static const char *names[] = {"Settings", "Diagnostics", "Actions", "Wi-Fi"};
+    static const char *hrefs[] = {"/", "/diag", "/actions"};
+    static const char *names[] = {"Settings", "Diagnostics", "Actions"};
     html += "<nav>";
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 3; i++)
     {
         html += "<a href='";
         html += hrefs[i];
@@ -356,6 +355,17 @@ static void handleActions()
             "<form method='post' action='/sleep' onsubmit=\"return confirm('Put the board to sleep? Touch the screen to wake it.')\"><button class='sleep'>Sleep</button></form>"
             "<form method='post' action='/restart' onsubmit=\"return confirm('Restart the board?')\"><button class='restart'>Restart</button></form>"
             "</div><p id='report'></p><div class='actions'><button id='inst' class='ota' style='display:none' onclick='install()'>Install update</button></div>";
+
+    // Saving always restarts the board onto the new network.
+    html += "<form method='post' action='/wifi' onsubmit=\"return confirm('Save this Wi-Fi network and restart the board? "
+            "If the name or password is wrong the board stays offline until you set Wi-Fi up again from its Settings tab.')\">"
+            "<h2>Change Wi-Fi network</h2><label>Network name (SSID)</label><input name='ssid' maxlength='32' required autocapitalize='off' autocorrect='off' value='";
+    html += htmlEscape(WiFi.SSID());
+    html += "'><label>Password <span class='dim'>(leave empty for an open network)</span></label>"
+            "<input name='wifipw' id='wifipw' type='password' maxlength='63' autocomplete='off' autocapitalize='off'>"
+            "<label><input type='checkbox' style='width:auto' onclick=\"el('wifipw').type=this.checked?'text':'password'\"> Show password</label>"
+            "<div class='note'>The board restarts and joins this network. Its address will probably change - the new one is shown on the board.</div>"
+            "<button type='submit'>Save Wi-Fi &amp; restart</button></form>";
     html += FPSTR(ACTIONS_SCRIPT);
     endPage(html, TAB_ACTIONS);
     server.send(200, "text/html", html);
@@ -419,30 +429,6 @@ static void handleSave()
         sendMessage("Saved", "/", 2, TAB_SETTINGS);
 }
 
-static void handleWifiPage()
-{
-    if (!authorized())
-        return;
-    String html;
-    beginPage(html, "Wi-Fi");
-    html += "<h1>Wi-Fi</h1><table>";
-    row(html, "Connected to", htmlEscape(WiFi.SSID()));
-    row(html, "Signal", String(WiFi.RSSI()) + " dBm");
-    row(html, "IP", WiFi.localIP().toString());
-    // Saving always restarts the board onto the new network.
-    html += "</table><form method='post' action='/wifi' onsubmit=\"return confirm('Save this Wi-Fi network and restart the board? "
-            "If the name or password is wrong the board stays offline until you set Wi-Fi up again from its Settings tab.')\">"
-            "<h2>Change network</h2><label>Network name (SSID)</label><input name='ssid' maxlength='32' required autocapitalize='off' autocorrect='off' value='";
-    html += htmlEscape(WiFi.SSID());
-    html += "'><label>Password <span class='dim'>(leave empty for an open network)</span></label>"
-            "<input name='wifipw' id='wifipw' type='password' maxlength='63' autocomplete='off' autocapitalize='off'>"
-            "<label><input type='checkbox' style='width:auto' onclick=\"document.getElementById('wifipw').type=this.checked?'text':'password'\"> Show password</label>"
-            "<div class='note'>The board restarts and joins this network. Its address will probably change - the new one is shown on the board.</div>"
-            "<button type='submit'>Save &amp; restart</button></form>";
-    endPage(html, TAB_WIFI);
-    server.send(200, "text/html", html);
-}
-
 static void handleWifi()
 {
     if (!authorized())
@@ -452,18 +438,18 @@ static void handleWifi()
     String password = server.arg("wifipw");
     if (ssid.length() == 0 || ssid.length() > 32)
     {
-        sendMessage("Wi-Fi not saved - the network name must be 1 to 32 characters", "/wifi", 5, TAB_WIFI);
+        sendMessage("Wi-Fi not saved - the network name must be 1 to 32 characters", "/actions", 5, TAB_ACTIONS);
         return;
     }
     if (password.length() != 0 && (password.length() < 8 || password.length() > 63))
     {
-        sendMessage("Wi-Fi not saved - the password must be 8 to 63 characters (or empty for an open network)", "/wifi", 5, TAB_WIFI);
+        sendMessage("Wi-Fi not saved - the password must be 8 to 63 characters (or empty for an open network)", "/actions", 5, TAB_ACTIONS);
         return;
     }
     strlcpy(pendingSsid, ssid.c_str(), sizeof(pendingSsid));
     strlcpy(pendingWifiPassword, password.c_str(), sizeof(pendingWifiPassword));
     String message = "Wi-Fi saved - restarting onto \"" + htmlEscape(ssid) + "\". Join that network and open the address shown on the board.";
-    sendMessage(message.c_str(), "/wifi", 60, TAB_WIFI);
+    sendMessage(message.c_str(), "/actions", 60, TAB_ACTIONS);
     deferAction(ACTION_WIFI);
 }
 
@@ -703,7 +689,6 @@ void webConfigTick()
         {
             server.on("/", HTTP_GET, handleRoot);
             server.on("/save", HTTP_POST, handleSave);
-            server.on("/wifi", HTTP_GET, handleWifiPage);
             server.on("/wifi", HTTP_POST, handleWifi);
             server.on("/restart", HTTP_POST, handleRestart);
             server.on("/ota/check", HTTP_POST, handleOtaCheck);

@@ -13,7 +13,7 @@
 //   no Bluetooth stack is linked into the firmware at all.
 void wifiManagerInit(); // call once from setup(), starts the connection task
 
-// Replaces the saved network with the given one (web Settings page) - the
+// Replaces the saved network with the given one (web Actions page) - the
 // same persisted STA config provisioning writes, so the next boot reconnects
 // with it. password is "" for an open network. The caller restarts the board
 // afterwards; nothing checks the credentials first, so a wrong one leaves

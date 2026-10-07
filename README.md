@@ -82,8 +82,8 @@ QR code under Settings > dashboard icon on the board). Log in as `admin`.
   tapped.
 - **Night mode**: dark colours and lower brightness, switched automatically
   at sunset and sunrise (Auto) or set to Night or Day.
-- **Web settings page**: `http://<board-ip>/` with Settings, Diagnostics,
-  Actions and Wi-Fi tabs (change the Wi-Fi network, API keys, favourite stops, weather area, volume, wake word,
+- **Web settings page**: `http://<board-ip>/` with Settings, Diagnostics and
+  Actions tabs (change the Wi-Fi network, API keys, favourite stops, weather area, volume, wake word,
   screen mode, update, sleep, restart). A QR code on the board opens it.
 - **Over-the-air updates** from this repo's GitHub releases.
 - **Wi-Fi setup by QR code**, plus light and deep sleep, and a status LED.
